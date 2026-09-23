@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 
 export const useTodoStore = defineStore("todos", {
   state: () => ({
+    searchKeyword: "",
     notes: [
       {
         id: 1,
@@ -9,6 +10,7 @@ export const useTodoStore = defineStore("todos", {
         content: "乳液、防曬",
         isFinished: false,
         isPinned: true,
+        todos: [],
       },
       {
         id: 2,
@@ -16,6 +18,7 @@ export const useTodoStore = defineStore("todos", {
         content: "確認設計稿修改範圍並回覆時程預估",
         isFinished: true,
         isPinned: false,
+        todos: [],
       },
       {
         id: 3,
@@ -23,6 +26,7 @@ export const useTodoStore = defineStore("todos", {
         content: "週四下班後或週六早上時段",
         isFinished: false,
         isPinned: false,
+        todos: [],
       },
       {
         id: 4,
@@ -30,35 +34,44 @@ export const useTodoStore = defineStore("todos", {
         content: "將本週設計稿歸檔並上傳至雲端",
         isFinished: true,
         isPinned: false,
+        todos: [],
       },
     ],
-    todos: [
-      {
-        id: 1,
-        item: "整理房間",
-        isFinished: false,
-      },
-
-      {
-        id: 2,
-        item: "讀書",
-        isFinished: false,
-      },
-      {
-        id: 3,
-        item: "運動",
-        isFinished: false,
-      }]
   }),
   getters: {
+    getNoteById: (state) => {
+      return (id) => state.notes.find((note) => note.id === Number(id));
+    },
     pinnedNotes() {
       return this.notes.filter((note) => note.isPinned);
     },
     allNotes() {
       return this.notes.filter((note) => !note.isPinned);
     },
+    filteredNotes() {
+      const keyword = this.searchKeyword.trim().toLowerCase();
+
+      if (!keyword) {
+        return this.notes;
+      }
+
+      return this.notes.filter((note) => {
+        return (
+          note.item.toLowerCase().includes(keyword) ||
+          note.content.toLowerCase().includes(keyword)
+        );
+      });
+    },
   },
   actions: {
+    updateNote(id, item, content) {
+      const note = this.getNoteById(id);
+      if (!note || !item.trim()) return false;
+
+      note.item = item.trim();
+      note.content = content;
+      return true;
+    },
     toggleNote(i) {
       this.notes[i].isFinished = !this.notes[i].isFinished;
     },
@@ -67,15 +80,17 @@ export const useTodoStore = defineStore("todos", {
       if (!note) return;
       note.isPinned = !note.isPinned;
     },
-    addNote(item, content) {
-      if (!item) return;
+    addNote(item, content, todos = []) {
+      if (!item.trim()) return false;
       this.notes.push({
-        id: this.notes[this.notes.length - 1].id + 1,
-        item: item,
+        id: Math.max(0, ...this.notes.map((note) => note.id)) + 1,
+        item: item.trim(),
         content: content,
         isFinished: false,
         isPinned: false,
+        todos: todos.map((todo) => ({ ...todo })),
       });
+      return true;
     },
     deleteNote(id) {
       const index = this.notes.findIndex((note) => note.id === id);
@@ -83,25 +98,31 @@ export const useTodoStore = defineStore("todos", {
 
       this.notes.splice(index, 1);
     },
-    addTodos(item) {
-      if (!item) return;
-      this.todos.push({
-        id: Date.now(),
-        item: item,
+    addTodos(noteId, item) {
+      const note = this.getNoteById(noteId);
+      if (!note || !item.trim()) return false;
+      note.todos.push({
+        id: Math.max(0, ...note.todos.map((todo) => todo.id)) + 1,
+        item: item.trim(),
         isFinished: false,
       });
+      return true;
     },
-    toggleTodo(id) {
-      const todo = this.todos.find((todo) => todo.id === id);
+    toggleTodo(noteId, id) {
+      const note = this.getNoteById(noteId);
+      if (!note) return;
+      const todo = note.todos.find((todo) => todo.id === id);
       if (!todo) return;
 
       todo.isFinished = !todo.isFinished;
     },
-    deleteTodo(id) {
-      const index = this.todos.findIndex((todo) => todo.id === id);
+    deleteTodo(noteId, id) {
+      const note = this.getNoteById(noteId);
+      if (!note) return;
+      const index = note.todos.findIndex((todo) => todo.id === id);
       if (index === -1) return;
 
-      this.todos.splice(index, 1);
+      note.todos.splice(index, 1);
     },
   },
 });

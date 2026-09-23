@@ -1,18 +1,57 @@
 <script setup>
 import { useTodoStore } from "../stores/addNote";
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from 'vue-router'
 
 const todo_store = useTodoStore();
+const route = useRoute()
+const router = useRouter()
 
 const note_item = ref("");
 const note_content = ref("");
 const new_item = ref("");
+const currentNote = computed(() => todo_store.getNoteById(route.params.id));
+
+function addTodo() {
+  if (todo_store.addTodos(route.params.id, new_item.value)) {
+    new_item.value = "";
+  }
+}
+
+function saveNote() {
+  const saved = todo_store.updateNote(
+    route.params.id,
+    note_item.value,
+    note_content.value
+  );
+
+  if (saved) {
+    router.push({ name: "home" });
+  }
+}
+
+watch(
+  currentNote,
+  (note) => {
+    new_item.value = "";
+
+    if (!note) {
+      router.replace({ name: "home" });
+      return;
+    }
+
+    note_item.value = note.item;
+    note_content.value = note.content;
+  },
+  { immediate: true }
+);
 
 </script>
 
 <template>
-  <form>
-    <div class="mb-3 pt-5">
+  <form class="note-editor" @submit.prevent="saveNote">
+    <div class="window-bar">編輯筆記<span class="window-lines" aria-hidden="true"></span></div>
+    <div class="mb-3">
       <input
         v-model="note_item"
         type="text"
@@ -33,10 +72,11 @@ const new_item = ref("");
       ></textarea>
       <div class="d-flex justify-content-end mt-3">
         <button
-          type="button"
+          type="submit"
           class="btn btn-dark"
+          :disabled="!note_item.trim()"
         >
-          新增筆記
+          儲存修改
         </button>
       </div>
     </div>
@@ -61,7 +101,7 @@ const new_item = ref("");
       </div>
     </div>
     <div
-      v-for="todo in todo_store.todos"
+      v-for="todo in currentNote?.todos ?? []"
       :key="todo.id"
       class="d-flex align-items-center gap-3 mb-3"
     >
@@ -69,14 +109,14 @@ const new_item = ref("");
         type="checkbox"
         class="form-check-input m-0"
         :checked="todo.isFinished"
-        @change="todo_store.toggleTodo(todo.id)"
+        @change="todo_store.toggleTodo(route.params.id, todo.id)"
       />
       <p class="mb-0" :class="{ 'note-line': todo.isFinished }">
         {{ todo.item }}
       </p>
       <i
         class="fa-solid fa-trash-can"
-        @click="todo_store.deleteTodo(todo.id)"
+        @click="todo_store.deleteTodo(route.params.id, todo.id)"
       ></i>
     </div>
   </form>
